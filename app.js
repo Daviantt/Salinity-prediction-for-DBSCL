@@ -136,3 +136,59 @@ function getSalinityQuartileLabel(salinity) {
   }
   return { label: 'Cao', level: 'High', color: '#10b981' };
 }
+
+// ===========================
+// 4) DOM elements
+// ===========================
+const infoPanel = document.getElementById("infoPanel");
+const legendBox = document.getElementById("legendBox");
+const infoContent = document.getElementById("infoContent");
+const tooltip = document.getElementById("tooltip");
+
+// Ẩn toàn bộ UI phụ khi load
+infoPanel.style.display = "none";
+legendBox.style.display = "none";
+tooltip.style.display = "none";
+
+function setInfo(html, show = false) {
+  infoContent.innerHTML = html;
+  if (show) {
+    infoPanel.style.display = "block";
+    legendBox.style.display = "block";
+  }
+}
+
+// ===========================
+// 5) Reverse Geocoding
+// ===========================
+async function reverseGeocode(lat, lon) {
+  try {
+    // Try direct Nominatim API (works in production without backend)
+    const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&accept-language=vi`;
+    
+    const res = await fetch(nominatimUrl, {
+      headers: {
+        'User-Agent': 'MekongSalinityH3Demo/1.0 (https://github.com/mekong-salinity)'
+      }
+    });
+    
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn("Geocode fetch error:", err);
+    return null;
+  }
+}
+
+function extractAdminName(geo) {
+  if (!geo || !geo.address)
+    return { district: "Không rõ", province: "Không rõ" };
+
+  const a = geo.address;
+  return {
+    district: a.county || a.district || a.city_district || a.town || a.suburb || "Không rõ",
+    province: a.state || a.city || "Không rõ"
+  };
+}
+
+
