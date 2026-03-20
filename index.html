@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Phân tích Môi trường DGGS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f9fc;
+            color: #1e3a5f;
+            line-height: 1.6;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #0d5d7a 0%, #1a8fb3 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hex-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.08;
+        }
+
+        .hex {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: white;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        .hex1 {
+            top: 10%;
+            left: 5%;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        .hex2 {
+            top: 60%;
+            right: 10%;
+            animation: float 7s ease-in-out infinite 1s;
+        }
+
+        .hex3 {
+            bottom: 15%;
+            left: 15%;
+            animation: float 9s ease-in-out infinite 2s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-30px);
+            }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            opacity: 0.95;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            padding: 14px 40px;
+            background: white;
+            color: #0d5d7a;
+            font-size: 1.05rem;
+            font-weight: 600;
+            border-radius: 25px;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 50px 20px;
+        }
+
+        .section {
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            color: #0d5d7a;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            border-left: 4px solid #1a8fb3;
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-icon {
+            font-size: 2.2rem;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            color: #0d5d7a;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .card-text {
+            color: #5a7a92;
+            font-size: 0.95rem;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #e3f2fd, #f0f9ff);
+            border-left: 4px solid #1a8fb3;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+
+        .highlight-title {
+            font-weight: 600;
+            color: #0d5d7a;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .var-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .var-tag {
+            background: white;
+            color: #0d5d7a;
+            padding: 6px 14px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid #90caf9;
+        }
+
+        .problem-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .problem {
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #e8f5f7;
+        }
+
+        .problem:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .problem-title {
+            font-size: 1.1rem;
+            color: #0d5d7a;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .problem-desc {
+            color: #5a7a92;
+            font-size: 0.9rem;
+            font-style: italic;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hero">
+        <div class="hex-bg">
+            <div class="hex hex1"></div>
+            <div class="hex hex2"></div>
+            <div class="hex hex3"></div>
+        </div>
+        <div class="hero-content">
+            <h1>Hệ thống Phân tích Môi trường DGGS</h1>
+            <p>Tích hợp dữ liệu đa nguồn để dự báo rủi ro xâm nhập mặn và biến đổi khí hậu</p>
+            <a href="./demo.html" class="cta-btn">Khám phá bản đồ</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- DGGS -->
+        <div class="section">
+            <h2 class="section-title">🌍 Hệ thống Lưới DGGS</h2>
+            <div class="highlight-box">
+                <p><strong>DGGS (Discrete Global Grid System)</strong> chia bề mặt Trái Đất thành các ô lưới hình học,
+                    cho phép phân tích không gian đa độ phân giải và tích hợp dữ liệu từ nhiều nguồn khác nhau một cách
+                    nhất quán.</p>
+            </div>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-icon">📐</div>
+                    <h3 class="card-title">Phân cấp lưới</h3>
+                    <p class="card-text">Phân tích từ toàn cầu đến địa phương với nhiều mức độ chi tiết</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🔗</div>
+                    <h3 class="card-title">Tích hợp đa nguồn</h3>
+                    <p class="card-text">Gán dữ liệu khác nhau vào cùng hệ lưới để phân tích tương quan</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">✅</div>
+                    <h3 class="card-title">Đồng nhất không gian</h3>
+                    <p class="card-text">Đảm bảo tính nhất quán, giảm sai số chuyển đổi tọa độ</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data -->
+        <div class="section">
+            <h2 class="section-title">📊 Bộ Dữ liệu</h2>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-icon">🧂</div>
+                    <h3 class="card-title">Độ mặn</h3>
+                    <div class="var-list">
+                        <span class="var-tag">salinity_mean</span>
+                        <span class="var-tag">salinity_min</span>
+                        <span class="var-tag">salinity_max</span>
+                    </div>
+                    <p class="card-text">Biến mục tiêu chính để đánh giá rủi ro xâm nhập mặn</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🌧️</div>
+                    <h3 class="card-title">Lượng mưa</h3>
+                    <div class="var-list">
+                        <span class="var-tag">rain_dry_sum</span>
+                        <span class="var-tag">rain_rainy_sum</span>
+                        <span class="var-tag">rain_dry_max_7d</span>
+                    </div>
+                    <p class="card-text">Nguồn nước ngọt chính, pha loãng độ mặn</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🌡️</div>
+                    <h3 class="card-title">Nhiệt độ</h3>
+                    <div class="var-list">
+                        <span class="var-tag">temp_dry_mean_dry</span>
+                        <span class="var-tag">temp_dry_max_dry</span>
+                    </div>
+                    <p class="card-text">Quyết định tốc độ bốc hơi và cô đặc độ mặn</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">☀️</div>
+                    <h3 class="card-title">Bức xạ</h3>
+                    <div class="var-list">
+                        <span class="var-tag">solar_sum_mua_kho</span>
+                        <span class="var-tag">solar_sum_mua_mua</span>
+                    </div>
+                    <p class="card-text">Tác động trực tiếp đến bốc hơi</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">⛰️</div>
+                    <h3 class="card-title">Địa hình</h3>
+                    <div class="var-list">
+                        <span class="var-tag">dem_mean</span>
+                        <span class="var-tag">slope_mean</span>
+                    </div>
+                    <p class="card-text">Vùng trũng thấp dễ bị xâm mặn</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🌳</div>
+                    <h3 class="card-title">Lớp phủ đất</h3>
+                    <div class="var-list">
+                        <span class="var-tag">pct_mangrove</span>
+                        <span class="var-tag">pct_crop</span>
+                        <span class="var-tag">pct_water_river</span>
+                    </div>
+                    <p class="card-text">Phản ánh đặc điểm và mức độ ảnh hưởng</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sync Method -->
+        <div class="section">
+            <h2 class="section-title">🔄 Đồng bộ Dữ liệu</h2>
+            <div class="highlight-box">
+                <div class="highlight-title">Quy trình: Dữ liệu thô → Đồng bộ hóa → Phân tích</div>
+                <p>Tất cả dữ liệu từ nhiều nguồn (vệ tinh, trạm đo, mô hình) được chuẩn hóa về cùng độ phân giải
+                    thời gian (ngày/tháng) và không gian (ô lưới H3), xử lý dữ liệu thiếu bằng nội suy,
+                    và chuyển về cùng đơn vị đo để sẵn sàng phân tích.</p>
+            </div>
+        </div>
+
+        <!-- Applications -->
+        <div class="section">
+            <h2 class="section-title">💡 Ứng dụng Thực tế</h2>
+            <div class="problem-section">
+                <div class="problem">
+                    <h3 class="problem-title">🧂 Dự báo xâm nhập mặn</h3>
+                    <div class="var-list">
+                        <span class="var-tag">rain_rainy_sum</span>
+                        <span class="var-tag">temp_dry_max_dry</span>
+                        <span class="var-tag">dem_mean</span>
+                        <span class="var-tag">pct_mangrove</span>
+                    </div>
+                    <p class="problem-desc">Mưa ít + nhiệt độ cao + vùng trũng + gần biển → rủi ro cao</p>
+                </div>
+                <div class="problem">
+                    <h3 class="problem-title">🌊 Phân tích lũ lụt</h3>
+                    <div class="var-list">
+                        <span class="var-tag">rain_dry_max_7d</span>
+                        <span class="var-tag">dem_min</span>
+                        <span class="var-tag">slope_mean</span>
+                        <span class="var-tag">pct_water_river</span>
+                    </div>
+                    <p class="problem-desc">Mưa lớn + vùng thấp + độ dốc nhỏ + gần sông → nguy cơ ngập</p>
+                </div>
+                <div class="problem">
+                    <h3 class="problem-title">🌡️ Hạn hán & khan hiếm nước</h3>
+                    <div class="var-list">
+                        <span class="var-tag">rain_dry_days_lt5</span>
+                        <span class="var-tag">solar_sum_mua_kho</span>
+                        <span class="var-tag">temp_dry_max_dry</span>
+                    </div>
+                    <p class="problem-desc">Nhiều ngày không mưa + bức xạ cao → bốc hơi mạnh → hạn hán</p>
+                </div>
+                <div class="problem">
+                    <h3 class="problem-title">🎯 Phân vùng bảo vệ</h3>
+                    <div class="var-list">
+                        <span class="var-tag">salinity_risk</span>
+                        <span class="var-tag">pct_crop</span>
+                        <span class="var-tag">pct_built</span>
+                    </div>
+                    <p class="problem-desc">Ưu tiên vùng canh tác và dân cư có rủi ro cao</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
