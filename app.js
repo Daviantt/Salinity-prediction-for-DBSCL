@@ -119,3 +119,20 @@ function getSalinityQuartileColor(salinity) {
   // Cao (66-100%): Xanh lá - An toàn
   return [16, 185, 129, 220]; // Emerald green
 }
+
+function getSalinityQuartileLabel(salinity) {
+  if (salinity === null || salinity === undefined || isNaN(salinity)) {
+    return { label: 'Không có dữ liệu', level: 'N/A', color: '#9ca3af' };
+  }
+  
+  const sal = Number(salinity);
+  const { t1, t2 } = SALINITY_QUARTILES;
+  
+  if (sal <= t1) {
+    return { label: 'Thấp', level: 'Low', color: '#ef4444' };
+  }
+  if (sal <= t2) {
+    return { label: 'Trung bình', level: 'Medium', color: '#f59e0b' };
+  }
+  return { label: 'Cao', level: 'High', color: '#10b981' };
+}
