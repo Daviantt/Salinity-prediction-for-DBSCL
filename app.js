@@ -191,4 +191,207 @@ function extractAdminName(geo) {
   };
 }
 
+// ===========================
+// 6) Tạo MapLibre
+// ===========================
+const map = new maplibregl.Map({
+  container: "map",
+  style: SATELLITE_WITH_LABEL_STYLE,
+  center: [105.6, 9.9],
+  zoom: 8.2,
+  pitch: 35,
+  maxBounds: MEKONG_BOUNDS
+});
 
+map.addControl(new maplibregl.NavigationControl(), "top-right");
+
+// ===========================
+// 7) DeckGL Overlay
+// ===========================
+const overlay = new MapboxOverlay({ layers: [] });
+map.addControl(overlay);
+
+// ===========================
+// 8) Data & Layer
+// ===========================
+let DATA = [];
+let HEX_ENABLED = false;
+let CURRENT_HEX = null; // Track active hex
+let CURRENT_PROBLEM = null; // 'drought' or 'mangrove'
+let SELECTED_YEAR = HAS_BACKEND ? '2021' : '2022';
+let SELECTED_MONTH = 1;
+let AVAILABLE_YEARS = [];
+let HEX_HOVER_ENABLED = true;
+
+function setHexHoverEnabled(enabled) {
+  if (HEX_HOVER_ENABLED === enabled) return;
+  HEX_HOVER_ENABLED = enabled;
+  tooltip.style.display = "none";
+  if (HEX_ENABLED) {
+    renderLayers();
+  }
+}
+
+function clearHexSelection() {
+  selectedHexForPrediction = null;
+  CURRENT_HEX = null;
+  HEX_HOVER_ENABLED = true;
+  tooltip.style.display = "none";
+  dashboardModal.style.display = 'none';
+  renderLayers();
+}
+
+function isWithinMekongBounds(lat, lon) {
+  const minLat = MEKONG_BOUNDS[0][1];
+  const maxLat = MEKONG_BOUNDS[1][1];
+  const minLon = MEKONG_BOUNDS[0][0];
+  const maxLon = MEKONG_BOUNDS[1][0];
+  return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+}
+
+function getMangroveColor(pct) {
+  if (pct === null || pct === undefined || Number.isNaN(pct)) return [156,163,175,200];
+  const v = Math.max(0, Math.min(100, Number(pct)));
+  // more mangrove -> greener
+  const g = Math.round(160 + (v / 100) * 95);
+  const r = Math.round(120 - (v / 100) * 80);
+  return [r, g, 64, 220];
+}
+
+function createH3Layer() {
+  const selectedHexId = selectedHexForPrediction?.hex || CURRENT_HEX;
+
+  return new H3HexagonLayer({
+    id: "h3-layer",
+    data: DATA,
+    h3Lib: h3,
+
+    pickable: true,
+    filled: true,
+    extruded: true,
+
+    getHexagon: d => d.hex,
+    // Color based on salinity quartiles
+    getFillColor: d => {
+      // Highlight selected hex for prediction with different color
+      if (selectedHexId && d.hex === selectedHexId) {
+        return [56, 189, 248, 245]; // Cyan-blue highlight (close to hover feel)
+      }
+      // Use salinity quartile color
+      const sal = d.predicted_salinity !== undefined ? d.predicted_salinity : d.salinity;
+      return getSalinityQuartileColor(sal);
+    },
+
+    getLineColor: d => {
+      // Thicker white border for selected hex
+      if (selectedHexId && d.hex === selectedHexId) {
+        return [14, 116, 144, 255]; // Strong border for selected hex
+      }
+      return [255, 255, 255, 120];
+    },
+    lineWidthMinPixels: 1,
+    
+    // Make selected hex line thicker
+    getLineWidth: d => {
+      if (selectedHexId && d.hex === selectedHexId) {
+        return 5;
+      }
+      return 1;
+    },
+
+    getElevation: d => {
+      // Elevate selected hex higher
+      if (selectedHexId && d.hex === selectedHexId) {
+        const sal = d.predicted_salinity || d.salinity || 0;
+        return Number(sal) * 2500 + 900; // Extra elevation for selected hex visibility
+      }
+      
+      if (CURRENT_PROBLEM === 'mangrove') {
+        // lower elevation for more mangrove (visual inversion)
+        return ((100 - (Number(d.mangrove) || 0)) / 100) * 800;
+      }
+      // Use predicted_salinity if available
+      const sal = d.predicted_salinity || d.salinity || 0;
+      return Number(sal) * 2500;
+    },
+    elevationScale: 1,
+
+    autoHighlight: HEX_HOVER_ENABLED,
+    highlightColor: [168, 85, 247, 220],
+    updateTriggers: {
+      autoHighlight: [HEX_HOVER_ENABLED],
+      getFillColor: [selectedHexId],
+      getLineColor: [selectedHexId],
+      getLineWidth: [selectedHexId],
+      getElevation: [selectedHexId]
+    },
+
+    /* ======================
+       HOVER: tooltip gọn nhẹ
+       ====================== */
+    onHover: info => {
+      if (!HEX_ENABLED || !HEX_HOVER_ENABLED || !info.object) {
+        tooltip.style.display = "none";
+        return;
+      }
+
+      const o = info.object;
+
+      tooltip.style.display = "block";
+      tooltip.style.left = `${info.x + 8}px`;
+      tooltip.style.top = `${info.y + 8}px`;
+
+      // Content depends on selected problem
+      if (CURRENT_PROBLEM === 'mangrove') {
+        tooltip.innerHTML = `
+          <div style="font-weight:600;">HEX ${o.hex.slice(0, 8)}…</div>
+          <div>Mangrove: <b>${formatNumber(o.mangrove, 1)} %</b></div>
+        `;
+      } else {
+        // Get salinity and quartile info
+        const sal = o.predicted_salinity !== undefined ? o.predicted_salinity : o.salinity;
+        const quartileInfo = getSalinityQuartileLabel(sal);
+        const salLabel = o.predicted_salinity !== undefined
+          ? `${formatNumber(o.predicted_salinity, 3)} ‰ (AI)` 
+          : `${formatNumber(o.salinity, 3)} ‰`;
+        const isPredicted = o.predicted_salinity !== undefined ? '🤖' : '';
+        
+        tooltip.innerHTML = `
+          <div style="font-weight:600;">${isPredicted} HEX ${o.hex.slice(0, 8)}…</div>
+          <div>Độ mặn: <b>${salLabel}</b></div>
+          <div>Phân vị: <b style="color:${quartileInfo.color}">${quartileInfo.label}</b></div>
+        `;
+      }
+    },
+
+    /* ======================
+       CLICK: popup trong suốt
+       ====================== */
+    onClick: async info => {
+      if (!HEX_ENABLED) return;
+
+      // Click ra ngoài hex → đóng popup
+      if (!info.object) {
+        infoPanel.style.display = "none";
+        legendBox.style.display = "none";
+        return;
+      }
+
+      const o = info.object;
+
+      CURRENT_HEX = o.hex;
+      selectedHexForPrediction = o;
+      renderLayers();
+      
+      // Open Dashboard with all data
+      openDashboard(o);
+
+      // Disable old Info Panel logic
+      /*
+      if (CURRENT_PROBLEM === 'mangrove') {
+         ... old logic ...
+      }
+      */
+    }
+  });
+}
