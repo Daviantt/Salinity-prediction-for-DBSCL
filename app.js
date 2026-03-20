@@ -395,3 +395,260 @@ function createH3Layer() {
     }
   });
 }
+dashboardModal.style.display = 'block';
+  // Ensure expanded on new click
+  const container = dashboardModal.firstElementChild;
+  if(container.classList.contains('collapsed')) {
+    container.classList.remove('collapsed');
+    if(btnToggle) btnToggle.innerText = '🔽';
+  }
+  
+  // Fetch and Render Chart with selected Year
+  fetchHexHistory(hexData.hex, SELECTED_YEAR);
+
+  // Fetch Location Name
+  try {
+    if (typeof h3 === 'undefined') {
+      dashboardTitle.innerText = `HEX ${hexData.hex.slice(0,8)}...`;
+      return;
+    }
+    
+    const [lat, lon] = h3.cellToLatLng(hexData.hex);
+    // Show coords immediately as fallback
+    const coordText = `📍 ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    dashboardTitle.innerText = coordText;
+
+    const geo = await reverseGeocode(lat, lon);
+    
+    if (geo && !geo.error) {
+      const admin = extractAdminName(geo);
+      if (admin.district !== "Không rõ" || admin.province !== "Không rõ") {
+        dashboardTitle.innerText = `📍 ${admin.district}, ${admin.province}`;
+      }
+      // else keep coordinates
+    }
+    // If geo is null or has error, coordinates are already displayed
+  } catch (e) {
+    console.error("Geocode error:", e);
+    // Keep whatever was last set (coordinates or hex)
+  }
+}
+
+function renderTimeline(data) {
+  // Restore canvas if it was replaced with message
+  const chartBody = document.querySelector('.chart-body');
+  if (chartBody && !chartBody.querySelector('canvas')) {
+    chartBody.innerHTML = '<canvas id="timelineChart"></canvas>';
+  }
+  
+  const canvas = document.getElementById('timelineChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  const labels = data.map(d => d.date);
+  const salinities = data.map(d => d.salinity);
+
+  if (timelineChart) {
+    timelineChart.destroy();
+  }
+
+  // Salinity gradient (blue theme)
+  const gradientSalinity = ctx.createLinearGradient(0, 0, 0, 300);
+  gradientSalinity.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+  gradientSalinity.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+  timelineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Độ mặn (‰)',
+          data: salinities,
+          borderColor: '#3b82f6',
+          backgroundColor: gradientSalinity,
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: '#3b82f6',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          titleColor: '#1e293b',
+          bodyColor: '#334155',
+          borderColor: '#e2e8f0',
+          borderWidth: 1,
+          padding: 10,
+          usePointStyle: true,
+          displayColors: true,
+          callbacks: {
+            label: function(context) {
+              return `Độ mặn: ${context.parsed.y.toFixed(3)} ‰`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', font: { size: 11 } },
+          grid: { color: '#f1f5f9' },
+          border: { display: false }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          grid: { color: '#f1f5f9', borderDash: [5, 5] },
+          ticks: { 
+            color: '#3b82f6', 
+            font: { weight: '600' },
+            callback: function(value) {
+              return value.toFixed(2) + ' ‰';
+            }
+          },
+          border: { display: false },
+          title: {
+            display: true,
+            text: 'Độ mặn (‰)',
+            color: '#3b82f6',
+            font: { weight: '600' }
+          }
+        }
+      }
+    }
+  });
+}
+
+// Controls
+const btnToggle = document.getElementById('btnToggleDashboard');
+if(btnToggle){
+  btnToggle.addEventListener('click', () => {
+    dashboardModal.firstElementChild.classList.toggle('collapsed');
+    // Change icon based on state
+    if (dashboardModal.firstElementChild.classList.contains('collapsed')) {
+      btnToggle.innerText = '▶️';
+    } else {
+      btnToggle.innerText = '🔽';
+    }
+  });
+}
+
+document.getElementById('chkTemp').addEventListener('change', (e) => {
+  if (timelineChart) timelineChart.setDatasetVisibility(0, e.target.checked);
+  if (timelineChart) timelineChart.update();
+});
+
+document.getElementById('chkSolar').addEventListener('change', (e) => {
+  if (timelineChart) timelineChart.setDatasetVisibility(1, e.target.checked);
+  if (timelineChart) timelineChart.update();
+});
+
+document.getElementById('btnCloseDashboard').addEventListener('click', () => {
+  dashboardModal.style.display = 'none';
+});
+
+// Close when clicking outside - REMOVED for floating panel
+/*
+dashboardModal.addEventListener('click', (e) => {
+  if (e.target === dashboardModal) {
+    dashboardModal.style.display = 'none';
+  }
+});
+*/
+
+async function fetchHexHistory(hexId, year = '2022') {
+  // Get hex data from loaded DATA array (no backend needed!)
+  const hexData = DATA.find(d => d.hex === hexId);
+  
+  if (!hexData) {
+    console.warn("Hex not found in DATA:", hexId);
+    if (timelineChart) timelineChart.destroy();
+    return;
+  }
+  
+  // Generate monthly timeline data from available hex properties
+  const timelineData = generateTimelineFromHex(hexData, year);
+  renderTimeline(timelineData);
+}
+
+// Generate simulated monthly salinity data for full year (Jan-Dec)
+function generateTimelineFromHex(hexData, year) {
+  const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+  
+  // Get base salinity value (predicted or original)
+  const baseSalinity = hexData.predicted_salinity !== undefined 
+    ? hexData.predicted_salinity 
+    : (hexData.salinity || 0.3);
+  
+  // Seasonal variation patterns for salinity (typical for Mekong Delta)
+  // Dry season (Jan-May): Higher salinity as freshwater decreases
+  // Wet season (Jun-Dec): Lower salinity due to increased rainfall and river flow
+  const salinityVariation = [
+    0.85, 0.95, 1.05, 1.15, 1.10,  // Jan-May (mùa khô - độ mặn cao)
+    0.75, 0.55, 0.45, 0.40, 0.50, 0.60, 0.70  // Jun-Dec (mùa mưa - độ mặn thấp)
+  ];
+  
+  return months.map((m, i) => ({
+    date: `${year}-${m}`,
+    salinity: baseSalinity * salinityVariation[i] + (Math.random() - 0.5) * 0.02
+  }));
+}
+
+function renderLayers() {
+  if (!HEX_ENABLED) {
+    overlay.setProps({ layers: [] });
+    tooltip.style.display = "none";
+    return;
+  }
+  overlay.setProps({ layers: [createH3Layer()] });
+}
+
+// ===========================
+// 9) Load data dynamically based on year
+// ===========================
+function loadDataForYear(year) {
+  const dataFile = `./data${year}.json`;
+  console.log(`Loading data for year ${year} from ${dataFile}...`);
+  
+  fetch(dataFile)
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Failed to load ${dataFile}`);
+      }
+      return res.json();
+    })
+    .then(data => {
+      DATA = data;
+      console.log(`✅ Loaded ${DATA.length} hexagons for year ${year}`);
+      
+      // Calculate salinity quartiles for color mapping
+      calculateSalinityQuartiles();
+      
+      // Re-render if hex is enabled
+      if (HEX_ENABLED) {
+        renderLayers();
+      }
+    })
+    .catch(error => {
+      console.error(`❌ Error loading data for year ${year}:`, error);
+      alert(`Không thể tải dữ liệu cho năm ${year}. Vui lòng chạy script generate_2025_data.py trước.`);
+    });
+}
+
+// Load initial data for 2022
+loadDataForYear(SELECTED_YEAR);
