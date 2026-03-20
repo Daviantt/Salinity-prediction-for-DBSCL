@@ -1,0 +1,72 @@
+console.log("app.js starting...");
+if (typeof deck === 'undefined') {
+  console.error("Critical: deck library is not loaded!");
+}
+const { MapboxOverlay } = deck || {};
+const { H3HexagonLayer } = deck || {};
+
+// ===========================
+// API Configuration
+// ===========================
+// Auto-detect: use localhost in development, otherwise relative path or disable backend features
+const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = IS_LOCAL ? 'http://localhost:5000' : '';
+const HAS_BACKEND = IS_LOCAL; // Backend features only available locally
+
+console.log(`🌐 Environment: ${IS_LOCAL ? 'Development' : 'Production'}`);
+console.log(`📡 Backend API: ${HAS_BACKEND ? 'Available' : 'Disabled'}`);
+
+// Store selected hex for AI prediction (used by createH3Layer)
+let selectedHexForPrediction = null;
+
+// ===========================
+// 1) Cấu hình vùng ĐBSCL
+// ===========================
+const MEKONG_BOUNDS = [
+  [104.1, 8.0],
+  [107.2, 11.6]
+];
+
+// ===========================
+// 2) Map style vệ tinh (ESRI)
+// ===========================
+const SATELLITE_WITH_LABEL_STYLE = {
+  version: 8,
+  sources: {
+    esriSat: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      ],
+      tileSize: 256
+    },
+    esriLabels: {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+      ],
+      tileSize: 256
+    }
+  },
+  layers: [
+    { id: "satellite", type: "raster", source: "esriSat" },
+    { id: "labels", type: "raster", source: "esriLabels" }
+  ]
+};
+
+// ===========================
+// 3) Helper UI
+// ===========================
+function formatNumber(x, digits = 3) {
+  if (x === null || x === undefined || Number.isNaN(x)) return "N/A";
+  return Number(x).toFixed(digits);
+}
+
+function getRiskColor(risk) {
+  if (!risk) return [107, 114, 128, 200];
+  const r = String(risk).toLowerCase();
+  if (r.includes("high") || r.includes("extreme")) return [239, 68, 68, 220];
+  if (r.includes("medium")) return [245, 158, 11, 220];
+  if (r.includes("low")) return [16, 185, 129, 220];
+  return [107, 114, 128, 200];
+}
