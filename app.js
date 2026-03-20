@@ -70,3 +70,52 @@ function getRiskColor(risk) {
   if (r.includes("low")) return [16, 185, 129, 220];
   return [107, 114, 128, 200];
 }
+
+// ===========================
+// Salinity Quartile Color System
+// ===========================
+let SALINITY_QUARTILES = { q1: 0, q2: 0, q3: 0, min: 0, max: 0 };
+
+// Calculate quartiles from data
+function calculateSalinityQuartiles() {
+  if (DATA.length === 0) return;
+  
+  // Get all salinity values (filter out null/undefined)
+  const salinities = DATA
+    .map(d => d.predicted_salinity !== undefined ? d.predicted_salinity : d.salinity)
+    .filter(s => s !== null && s !== undefined && !isNaN(s))
+    .sort((a, b) => a - b);
+  
+  if (salinities.length === 0) return;
+  
+  const n = salinities.length;
+  SALINITY_QUARTILES = {
+    min: salinities[0],
+    t1: salinities[Math.floor(n * 0.33)],  // Low threshold (33%)
+    t2: salinities[Math.floor(n * 0.66)],  // Medium threshold (66%)
+    max: salinities[n - 1]
+  };
+  
+  console.log('📊 Salinity Thresholds:', SALINITY_QUARTILES);
+}
+
+// Get color based on salinity level (3 levels)
+function getSalinityQuartileColor(salinity) {
+  if (salinity === null || salinity === undefined || isNaN(salinity)) {
+    return [156, 163, 175, 180]; // Gray for no data
+  }
+  
+  const sal = Number(salinity);
+  const { t1, t2 } = SALINITY_QUARTILES;
+  
+  // Thấp (0-33%): Đỏ - Nguy hiểm
+  if (sal <= t1) {
+    return [239, 68, 68, 220]; // Red
+  }
+  // Trung bình (33-66%): Cam
+  if (sal <= t2) {
+    return [245, 158, 11, 220]; // Amber/Orange
+  }
+  // Cao (66-100%): Xanh lá - An toàn
+  return [16, 185, 129, 220]; // Emerald green
+}
