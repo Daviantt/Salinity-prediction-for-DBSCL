@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ĐBSCL - Salinity H3</title>
+
+  <!-- MapLibre -->
+  <link href="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@3.0.0/dist/maplibre-gl.js"></script>
+
+  <!-- H3 -->
+  <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.umd.js"></script>
+
+  <!-- DeckGL -->
+  <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+  <script>console.log("HTML Head: Styles loaded");</script>
+</head>
+
+<body>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <!-- Toggle Button -->
+    <button id="btnCollapseToolbar"
+      style="font-size:1.2rem; cursor:pointer; padding:8px; border-radius:10px; border:none; background:rgba(255,255,255,0.9);">⚙️</button>
+
+    <button id="btnlogin" class="btnLogin">🔑 Đăng nhập</button>
+
+    <!-- Action Buttons Group (Hidden by default via CSS) -->
+    <div id="toolbar-actions">
+      <!-- Toggle Hex Button -->
+      <div class="hex-toggle-wrap">
+        <label class="switch" for="hexToggle" title="Bật/Tắt lớp Hex">
+          <input type="checkbox" id="hexToggle">
+          <span class="slider"></span>
+        </label>
+        <span id="hexToggleText" class="hex-toggle-text">Hex: Tắt</span>
+      </div>
+
+      <!-- Toggle AI Panel Button -->
+      <button id="btnXGBoost" class="problemOption">🤖 Dự báo độ mặn (AI)</button>
+
+      <div class="dropdown" style="position:relative;">
+        <button id="btnYear" class="dropdown-btn">📅 Năm: 2022 ▾</button>
+        <div id="yearMenu" class="dropdown-content">
+          <a href="#" class="yearOption" data-year="2022">📊 2022 (Thực đo)</a>
+          <a href="#" class="yearOption" data-year="2025">🔮 2025 (Dự báo)</a>
+        </div>
+      </div>
+
+      <!-- Tọa độ Zalo Button -->
+      <button id="btnToggleZalo">📍 Tọa độ Zalo</button>
+
+      <!-- Coordinate Search Button -->
+      <button id="btnCoordSearch">🎯 Tìm tọa độ</button>
+
+      <a href="index.html" class="btnhome" id="btnHome">🏠 Trang chủ</a>
+    </div>
+  </div>
+
+  <!-- Tooltip hover (ẩn mặc định) -->
+  <div id="tooltip" style="display:none;"></div>
+
+  <!-- Popup / Info panel (ẨN BAN ĐẦU) -->
+  <div id="infoPanel" style="display:none;">
+    <div class="popup-header">📌 Thông tin điểm</div>
+
+    <div class="popup-grid">
+      <!-- CỘT THÔNG TIN -->
+      <div id="infoContent"></div>
+
+      <!-- CỘT CHÚ THÍCH -->
+      <div id="legendBox" class="legend">
+        <div class="legend-title">Chú thích</div>
+
+        <div class="legend-item">
+          <span class="legend-color high"></span> Cao
+        </div>
+        <div class="legend-item">
+          <span class="legend-color medium"></span> Trung bình
+        </div>
+        <div class="legend-item">
+          <span class="legend-color low"></span> Thấp
+        </div>
+        <div class="legend-item">
+          <span class="legend-color unknown"></span> Không rõ
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Prediction Panel -->
+  <div id="xgboostPanel" style="display:none;">
+    <div class="popup-header">🤖 Dự báo độ mặn AI</div>
+
+    <div class="xgboost-form">
+      <!-- Search Location -->
+      <div class="form-group">
+        <label>🔍 Tìm kiếm địa điểm:</label>
+        <div class="ai-search-container">
+          <input type="text" id="aiSearchInput" placeholder="Nhập tên huyện, tỉnh (VD: Bến Tre, Cần Thơ...)">
+          <div id="aiSearchResults" class="ai-search-results"></div>
+        </div>
+        <div id="selectedLocation" class="selected-location" style="display:none;">
+          <span id="locationName"></span>
+          <button id="btnClearLocation" class="clear-btn">✕</button>
+        </div>
+      </div>
+
+      <!-- Model Selection -->
+      <div class="form-group">
+        <label>Chọn mô hình AI:</label>
+        <div class="model-selector">
+          <button id="btnModelXGBoost" class="model-btn active" data-model="xgboost">
+            🌲 XGBoost
+          </button>
+          <button id="btnModelSMRI" class="model-btn" data-model="smri">
+            📊 SMRI (Ridge)
+          </button>
+          
+        </div>
+      </div>
+
+      <button id="btnPredict" class="predict-button" style="display:none;">🔮 Dự báo điểm</button>
+      <button id="btnPredictAll" class="predict-button predict-all">🗺️ Dự báo toàn vùng</button>
+
+      <div id="predictionResult" style="display:none; margin-top:16px;">
+        <div class="result-title">Kết quả dự báo:</div>
+        <div id="resultContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coordinate Search Panel -->
+  <div id="coordSearchPanel" style="display:none;">
+    <div class="popup-header">🎯 Tìm toạ độ trong ĐBSCL</div>
+    <div class="coord-search-form">
+      <div class="coord-search-note">Giới hạn: Vĩ độ 8.0 - 11.6, Kinh độ 104.1 - 107.2</div>
+
+      <div class="coord-input-row">
+        <label for="coordLatInput">Vĩ độ (Lat)</label>
+        <input type="number" id="coordLatInput" step="0.0001" placeholder="VD: 10.0333">
+      </div>
+
+      <div class="coord-input-row">
+        <label for="coordLonInput">Kinh độ (Lon)</label>
+        <input type="number" id="coordLonInput" step="0.0001" placeholder="VD: 105.7833">
+      </div>
+
+      <div class="coord-actions">
+        <button id="btnCoordSearchSubmit" class="coord-btn primary">🔎 Tìm ô hex</button>
+        <button id="btnCoordSearchClear" class="coord-btn ghost">✖ Huỷ đánh dấu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Modal -->
+  <div id="dashboardModal" class="dashboard-overlay" style="display:none;">
+    <div class="dashboard-container">
+      <div class="dashboard-header">
+        <button id="btnToggleDashboard"
+          style="background:none; border:none; cursor:pointer; font-size:1.2rem; color:#64748b;">🔽</button>
+        <h2 id="dashboardTitle">Thông tin HEX</h2>
+        <button id="btnCloseDashboard">✖</button>
+      </div>
+
+      <!-- Chart Section (Main Focus) -->
+      <div class="chart-section">
+        <!-- <div class="chart-header">
+           Controls moved to footer or inside chart 
+        </div> -->
+        <div class="chart-body">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Stats Footer (Legend style) -->
+      <div class="stats-footer">
+        <div class="stat-item">
+          <span class="stat-icon">💧</span>
+          <span class="stat-label">Độ mặn:</span>
+          <span class="stat-value" id="valSalinity">--</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">🌡️</span>
+          <span class="stat-label">Nhiệt độ:</span>
+          <span class="stat-value" id="valTemp">--</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">⚠️</span>
+          <span class="stat-label">Rủi ro:</span>
+          <span class="stat-value" id="valRisk">--</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">🏔️</span>
+          <span class="stat-label">Độ cao:</span>
+          <span class="stat-value" id="valElev">--</span>
+        </div>
+
+        <!-- Hidden checkboxes for compatibility -->
+        <input type="checkbox" id="chkTemp" style="display:none;" checked>
+        <input type="checkbox" id="chkSolar" style="display:none;" checked>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Panel -->
+  <div id="loginModal" class="login-modal-overlay" style="display:none;">
+    <div class="login-container" style="width: 320px; padding: 30px 24px;">
+      <button id="btnCloseLogin" class="close-login-btn">✖</button>
+      <h2 class="login-title" style="margin-bottom: 24px; font-size: 1.3rem;">Đăng nhập hệ thống</h2>
+      
+      <button id="btnZaloLogin" class="zalo-login-btn">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" alt="Zalo Logo" class="zalo-logo">
+        Đăng nhập bằng Zalo
+      </button>
+    </div>
+  </div>
+
+  <!-- zalo location panel -->
+  <div id="zaloPanel" style="display: none; position: absolute; right: 20px; top: 80px; background: rgba(255, 255, 255, 0.95); width: 280px; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 999; backdrop-filter: blur(5px); font-family: sans-serif;">
+    <h3 style="margin-top: 0; color: #0068FF; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Icon_of_Zalo.svg/1200px-Icon_of_Zalo.svg.png" width="20" height="20">
+      Tọa độ từ Zalo
+    </h3>
+
+    <button id="btnClearZaloSelection" style="width: 100%; margin-bottom: 10px; padding: 8px 10px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; color: #1e40af; font-weight: 600; cursor: pointer;">
+      ✖ Bỏ đánh dấu ô đang chọn
+    </button>
+    
+    <ul id="coordList" style="list-style: none; padding: 0; margin: 0; max-height: 250px; overflow-y: auto;">
+      </ul>
+    
+    <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
+    
+    <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">🔧 Giả lập nhận tin nhắn Zalo:</div>
+    <div style="display: flex; gap: 5px;">
+      <input type="text" id="mockZaloInput" value="10.0333, 105.7833" placeholder="VD: 10.03, 105.78" style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem;">
+      <button onclick="simulateZaloMessage()" style="background: #0068FF; color: white; border: none; border-radius: 4px; padding: 6px 10px; cursor: pointer; font-weight: bold;">Gửi</button>
+    </div>
+  </div>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
+</body>
+
+</html>
